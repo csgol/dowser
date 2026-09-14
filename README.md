@@ -1,5 +1,17 @@
 # Dowser
 
+```
+██████╗  ██████╗ ██╗    ██╗███████╗███████╗██████╗ 
+██╔══██╗██╔═══██╗██║    ██║██╔════╝██╔════╝██╔══██╗
+██║  ██║██║   ██║██║ █╗ ██║███████╗█████╗  ██████╔╝
+██║  ██║██║   ██║██║███╗██║╚════██║██╔══╝  ██╔══██╗
+██████╔╝╚██████╔╝╚███╔███╔╝███████║███████╗██║  ██║
+╚═════╝  ╚═════╝  ╚══╝╚══╝ ╚══════╝╚══════╝╚═╝  ╚═╝
+       \    /                                       
+        \  /         
+         \/
+```
+
 **Purpose:** Take a noisy list of external-facing IPs (e.g. from Censys) and produce a clean, in-scope, DNS-validated target set for an authorized engagement — by cross-checking the IPs against the organization's *own* DNS footprint rather than trusting a single source.
 
 ---
