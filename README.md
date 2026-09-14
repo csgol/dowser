@@ -180,6 +180,63 @@ Loop it over the leftover/unconfirmed pile to triage by owner:
 while read ip; do echo "== $ip"; whois "$ip" | grep -iE 'netname|orgname|descr'; done < org_not_in_censys.txt
 ```
 
+## Step 8 — Classify targets before scanning (CDN / cloud / owner)
+
+Once you have a validated list (`confirmed.txt` or `org_ips_filtered.txt`), not every
+IP is a box you should point a scanner at. Some resolve onto **CDN edges**
+(Cloudflare, Akamai, Fastly), **cloud hosting** (Azure, AWS, GCP), or **SaaS**
+(Microsoft 365, etc.). These need classifying first, because:
+
+- A **CDN edge** is a shared cache in front of the real origin — scanning it tests the
+  provider, not the org, and won't reveal the origin anyway.
+- **SaaS** infrastructure (e.g. `*.protection.outlook.com`) belongs to the vendor, not
+  the org — out of bounds regardless of engagement scope.
+- **Cloud-hosted org apps** (e.g. the org's own Azure App Service) *are* their asset and
+  may be scannable — but only if in scope **and** the provider's testing rules are met.
+
+### Check 1 — Reverse DNS (PTR)
+
+Quick, passive, but usually blank — PTR is optional and often unset. It's a **one-way**
+signal: it can *confirm* a provider when a record exists, but a blank result rules
+nothing out.
+
+```bash
+# full nslookup output per IP
+while read ip; do echo "===== $ip ====="; nslookup "$ip"; echo; done < confirmed.txt
+
+# compact: IP -> PTR name (dig is cleanest; needs dnsutils)
+while read ip; do echo "$ip -> $(dig +short -x "$ip")"; done < confirmed.txt
+```
+
+Windows (PowerShell):
+
+```powershell
+Get-Content confirmed.txt | ForEach-Object { "===== $_ ====="; nslookup $_; "" }
+```
+
+### Check 2 — Owner / ASN (the reliable one)
+
+Every routed IP belongs to a registered netblock, whether or not PTR is set. This is the
+check that actually answers "CDN/cloud vs. org."
+
+```bash
+# Linux
+while read ip; do echo "== $ip"; whois "$ip" | grep -iE 'orgname|org-name|netname|descr' | head -3; done < confirmed.txt
+```
+
+Windows has no built-in whois — use the browser: paste each IP into
+`https://ipinfo.io/<ip>` or `https://bgp.he.net`. The owner and ASN are at the top.
+
+### Reading the result
+
+| Owner / name pattern | Meaning | Scan? |
+|----------------------|---------|-------|
+| Cloudflare, Akamai, Fastly, Imperva, Sucuri, Edgio | CDN edge | No — flag as third-party |
+| `*.protection.outlook.com`, `autodiscover.*`, `*.mail.` | Microsoft 365 / SaaS | No — vendor infra |
+| `*.cloudapp.azure.com`, `*.azurewebsites.net` | Org's Azure-hosted app | Maybe — if in scope + cloud rules met |
+| `*.amazonaws.com`, `*.compute.` | AWS-hosted | Maybe — same conditions |
+| Org's own name / ordinary hosting provider | Org infrastructure | Yes — if in scope |
+
 ---
 
 ## Understanding your output files
